@@ -1,0 +1,804 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<title>First step into Kubernetes</title>
+
+		<link rel="stylesheet" href="css/reset.css">
+		<link rel="stylesheet" href="css/reveal.css">
+		<link rel="stylesheet" href="css/theme/black.css">
+		<link rel="stylesheet" href="css/custom1.css">
+
+		<!-- Theme used for syntax highlighting of code -->
+		<link rel="stylesheet" href="lib/css/monokai.css">
+
+		<!-- Printing and PDF exports -->
+		<script>
+			var link = document.createElement( 'link' );
+			link.rel = 'stylesheet';
+			link.type = 'text/css';
+			link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
+			document.getElementsByTagName( 'head' )[0].appendChild( link );
+		</script>
+	</head>
+	<body>
+		<div class="reveal">
+			<div class="slides">
+				<section>
+					<section>
+						<h2>First step into Kubernetes<br />(And ShinyProxy)</h2>
+						<p>
+							Link to this presentation: <a href="https://bit.ly/2Vt9vZp">bit.ly/2Vt9vZp</a>.<br />
+							<img style="width: 30%" src="qr-self1.png" alt="qr-self1" />
+						</p>
+					</section>
+					<section>
+						<h2>What it is about</h2>
+						<ul>
+							<li>Basic concepts used in Kubernetes.</li>
+							<li>Architecture of our Kubernetes cluster running ShinyProxy.</li>
+							<li>Detailed instructions (YAML files) provided in separate documents.</li>
+						</ul>
+					</section>
+					<section>
+						<h2>What it is not</h2>
+						<ul>
+							<li>Complete guide to Kubernetes nor ShinyProxy. Only absolutely required knowledge is included.</li>
+							<li>Description of final version of the project. It's still live and ongoing.</li>
+						</ul>
+					</section>
+					<section>
+						<h2>What is the objective of the project?</h2>
+						<ul>
+							<li>Launch POC ShinyProxy on self-hosted Kubernetes. Test if performance and usability will be good enough.</li>
+							<li>Learn Kubernetes basics to be able to use Kubernetes-as-a-service in the future.</li>
+							<li>Create architecture that will let us run other web applications in the future.</li>
+						</ul>
+					</section>
+					<section>
+						<h2>Why this presentation?</h2>
+						<ul>
+							<li>Couldn't find good introduction to self-hosted Kubernetes.</li>
+							<li>I took me about two weeks to make my first Kubernetes cluster work. I'm sharing my experience and knowledge.</li>
+						</ul>
+					</section>
+					<section>
+						<h2>Organizational background</h2>
+						<ul>
+							<li>We wanted to start using Kubernetes in our projects.</li>
+							<li>We also wanted to test ShinyProxy. Free Shiny has a limit of one simultaneous backend task per dashboard. ShinyProxy can overcome this limit.
+							</li>
+						</ul>
+					</section>
+					<section data-background-image="all-the-things.png" data-background-opacity=0.2>
+						<h2>Organizational background</h2>
+						<ul>
+							<li>ShinyProxy runs dashboards in Docker containers. It can be used with plain Docker (harder scaling and no built-in HA). But it also supports Kubernetes (easier scaling and built-in HA).</li>
+							<li>We joined those two projects together.</li>
+						</ul>
+					</section>
+					<section>
+						<h2>Shiny Example</h2>
+						<video controls loop autoplay="autoplay"><source src="shiny-example-braian.mp4" type="video/mp4"></video>
+						<small>Source: (<a href="https://katsob.shinyapps.io/braian/">BRAIAN</a>)</small>
+					</section>
+					<section>
+						<h2>What have we achieved so far?</h2>
+						<ul>
+							<li>Development Kubernetes cluster on 3 virtual machines. Installed using <span class="code1">kubespray</span>. ShinyProxy running on it. CI/CD using GitLab.</li>
+							<li>Personal testing/development Kubernetes installations.
+								<ul>
+									<li><span class="code1">minikube</span></li>
+									<li><span class="code1">kubespray</span> on Vagrant on VirtualBox with <span class="code1">Flannel</span></li>
+									<li><span class="code1">kubespray</span> on Vagrant on libvirtd (KVM) with <span class="code1">Calico</span></li>
+								</ul>
+							</li>
+						</ul>
+					</section>
+				</section>
+				<section>
+					<section>
+						<h2>Kubernetes Architecture</h2>
+						<img src="kubernetes-architecture.png" alt="kubernetes architecture" />
+					</section>
+					<section>
+						<h2>Kubernetes Architecture</h2>
+						<img src="Pod-networking.png" alt="pod networking"/>
+						<p>
+							<small>(<a href="https://commons.wikimedia.org/wiki/File:Pod-networking.png">source</a>)</small>
+						</p>
+					</section>
+					<section>
+						<h2>Kubernetes objects</h2>
+						<img src="kubernetes-objects-1.jpeg" alt="kubernetes objects" />
+						<p>
+							<small>(<a href="https://medium.com/@tsuyoshiushio/kubernetes-in-three-diagrams-6aba8432541c">source</a>)</small>
+						</p>
+					</section>
+				</section>
+				<section>
+					<section>
+						<h2>Service</h2>
+						<p>
+							When pod is created it receives random IP address from node's network. We need a well-known contact point (IP address) to access services running in pods. That's what <span class="code1">Service</span> objects are for.
+						</p>
+						<p>
+							Service object can be a frontend for many backend pods.
+						</p>
+					</section>
+					<section>
+						<h2>Service</h2>
+						Types of Service:
+						<ul>
+							<li>ClusterIP - Service receivers IP address reachable from within the cluster.</li>
+							<li>NodePort - Exposes the service on each Node’s IP at a static port.</li>
+							<li>LoadBalancer - Exposes the service externally using a load balancer.</li>
+						</ul>
+					</section>
+				</section>
+				<section>
+					<section>
+						<h2>NodePort</h2>
+						<img src="nodeport.jpg" alt="nodeport" />
+						<p>
+							<small>(<a href="https://kubernetes.github.io/ingress-nginx/deploy/baremetal/">source</a>)</small>
+						</p>
+					</section>
+					<section>
+						<h2>Cloud Load Balancer</h2>
+						<img style="width: 60%" src="cloud_load_balancer.jpg" alt="cloud load balancer" />
+						<p>
+							<small>(<a href="https://kubernetes.github.io/ingress-nginx/deploy/baremetal/">source</a>)</small>
+						</p>
+					</section>
+					<section>
+						<h2>Bare metal Load Balancer problem</h2>
+						<img style="width: 60%" src="baremetal_no_load_balancer.jpg" alt="baremetal no load balancer" />
+						<p>
+							<small>(<a href="https://kubernetes.github.io/ingress-nginx/deploy/baremetal/">source</a>)</small>
+						</p>
+					</section>
+					<section>
+						<h2>Traditional Load Balancer</h2>
+						<img style="width: 60%" src="user_edge.jpg" alt="user edge" />
+						<p>
+							<small>(<a href="https://kubernetes.github.io/ingress-nginx/deploy/baremetal/">source</a>)</small>
+						</p>
+					</section>
+					<section>
+						<h2>Host Network</h2>
+						<img src="hostnetwork.jpg" alt="hostnetwork" />
+						<p>
+							<small>(<a href="https://kubernetes.github.io/ingress-nginx/deploy/baremetal/">source</a>)</small>
+						</p>
+					</section>
+				</section>
+				<section>
+					<section>
+						<h2>MetalLB</h2>
+						<img src="metallb.jpg" alt="MetalLB" />
+						<p>
+							<small>(<a href="https://kubernetes.github.io/ingress-nginx/deploy/baremetal/">source</a>)</small>
+						</p>
+					</section>
+					<section>
+						<h2>MetalLB</h2>
+						<ul>
+							<li>In layer 2 mode, one machine in the cluster takes ownership of the IP addresses and forwards traffic to given Service.</li>
+							<li>Assigns IP (externalIP) addresses to Services.</li>
+							<li>You have to tell MetalLB what range of addresses it can use.</li>
+						</ul>
+					</section>
+					<section>
+						<h2>MetalLB</h2>
+						<ul>
+							<li>"Traditional" load balancer vs. MetalLB + Ingress.</li>
+							<li>Also supports BGP mode.</li>
+							<li>To expose a service externally, create it with type <span class="code1">LoadBalancer</span>. MetalLB will assign <span class="code1">ExternalIP</span> to it.</li>
+						</ul>
+					</section>
+					<section>
+						<h2>Network schema without MetalLB</h2>
+						<img src="Kubernetes-schemas-general-network-schema-without-MetalLB.png" alt="Kubernetes - schemas - general network schema - without MetalLB" />
+					</section>
+					<section>
+						<h2>Network schema</h2>
+						<img src="Kubernetes-schemas-general-network-schema.png" alt="Kubernetes - schemas - general network schema" />
+					</section>
+					<section>
+						<h2>MetalLB limitations</h2>
+						<ul>
+							<li>Failover mechanism, like VRRP (<span class="code1">keepalived</span>). It takes a few second to elect new master.</li>
+							<li style="display: block;">
+								<ul>
+									<li><a href="https://github.com/danderson/metallb/issues/298">Or even a few minutes.</a></li>
+									<li>But we need to start with something...</li>
+								</ul>
+							</li>
+							<li>MetalLB master node can be a bottleneck/SPOF.</li>
+						</ul>
+					</section>
+					<section>
+						<h2>MetalLB installation</h2>
+						<ul>
+							<li>Follow documentation.</li>
+							<li style="display: block;">
+								<ul>
+									<li><small><a href="https://metallb.universe.tf/tutorial/layer2/">metallb.universe.tf/tutorial/layer2</a></small></li>
+									<li><small><a href="https://metallb.universe.tf/installation/">metallb.universe.tf/installation</a></small></li>
+									<li><small><a href="https://metallb.universe.tf/configuration/">metallb.universe.tf/configuration</a></small></li>
+								</ul>
+							</li>
+							<li>Create <span class="code1">ConfigMap</span> and assign layer 2 address pool.</li>
+						</ul>
+					</section>
+				</section>
+				<section>
+					<section>
+						<h2>Ingress</h2>
+						<img src="ingressoverview.png" alt="ingress overview" style="width: 80%" />
+						<p>
+							<small>(<a href="https://pascalnaber.wordpress.com/2017/10/27/configure-ingress-on-kubernetes-using-azure-container-service/">source</a>)</small>
+						</p>
+					</section>
+					<section>
+						<h2>Ingress</h2>
+						<ul>
+							<li>Kubernetes-as-a-service providers provide their own load balancers (💰). Less things to worry about for us.</li>
+							<li>Ingress controller finds all objects of kind <span class="code1">Ingress</span> in <b>ALL</b> namespaces when generating configuration.</li>
+						</ul>
+					</section>
+					<section>
+						<h2>Ingress installation</h2>
+						<ul>
+							<li>Follow documentation.</li>
+							<li style="display: block;">
+								<ul>
+									<li><small><a href="https://kubernetes.github.io/ingress-nginx/deploy/">kubernetes.github.io/ingress-nginx/deploy</a></small></li>
+									<li><small><a href="https://kubernetes.github.io/ingress-nginx/deploy/baremetal/">kubernetes.github.io/ingress-nginx/deploy/baremetal</a></small></li>
+									<li><small><a href="https://kubernetes.io/docs/concepts/services-networking/ingress/">kubernetes.io/docs/concepts/services-networking/ingress</a></small></li>
+								</ul>
+							</li>
+							<li>In <span class="code1">ingress-nginx</span> <span class="code1">Service</span> change <span class="code1">Type</span> from <span class="code1">NodePort</span> (default) to <span class="code1">LoadBalancer</span>.</li>
+						</ul>
+					</section>
+					<section>
+						<h2>How to use Ingress</h2>
+						<ul>
+							<li>Create <span class="code1">Pod</span> with web application and accompanying <span class="code1">Service</span>.</li>
+							<li>Create <span class="code1">Ingress</span> object in the same namespace as Pod.</li>
+						</ul>
+					</section>
+					<section>
+						<h2>How to use Ingress with SSL</h2>
+						<ul>
+							<li>Create <span class="code1">Secret</span> with SSL certificate.</li>
+							<li>Add <span class="code1">tls</span> section to <span class="code1">Ingress</span> object.</li>
+						</ul>
+					</section>
+					<section>
+						<h2>How we use Ingress</h2>
+						<ul>
+							<li>DNS <span class="italic">*.kubernetes.example.com</span> pointing to Internet-facing firewall cluster's IP.</li>
+							<li>Ingress has SSL certificate for <span class="italic">*.kubernetes.example.com</span>.</li>
+							<li>User (programmer) can create any Ingress object that uses subdomain from <span class="italic">kubernetes.example.com</span> and it will be automatically accessible from the Internet.</li>
+						</ul>
+					</section>
+				</section>
+				<section>
+					<section>
+						<h2>Sidecar</h2>
+						<img src="bullet-manx-sidecar.jpg" alt="sidecar" />
+						<p>
+							<small>(<a href="http://motorbike-search-engine.co.uk/2006_Bikes/royal_enfield_sidecars.php">source</a>)</small>
+						</p>
+					</section>
+					<section>
+						<h2>Sidecar</h2>
+						<ul>
+							<li>Additional container in a pod that extends the main container or provides service(s) for the main container.</li>
+							<li>ShinyProxy uses sidecar to access Kubernetes cluster to manage pods with dashboards.</li>
+						</ul>
+					</section>
+					<section>
+						<h2>Sidecar</h2>
+						ShinyProxy deployment uses sidecar container (<a href="https://github.com/openanalytics/shinyproxy-config-examples/blob/master/03-containerized-kubernetes/sp-deployment.yaml">source</a>):
+<pre><code class="yaml" data-line-numbers>kind: Deployment
+# [...]
+spec:
+  # [...]
+  template:
+    # [...]
+    spec:
+      containers:
+      # [...]
+      - name: kube-proxy-sidecar
+        image: kube-proxy-sidecar
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8001
+</code></pre>
+					</section>
+				</section>
+				<section>
+					<h2>Namespace</h2>
+					<ul>
+						<li>Namespaces can be used to join objects in groups. It's useful for access control and separating applications.</li>
+						<li>Names of objects need to be unique only in scope of their namespace.</li>
+					</ul>
+				</section>
+				<section>
+					<section>
+						<h2>Label</h2>
+						<ul>
+							<li>Key-value pairs assigned to objects.</li>
+							<li>Labels can be used by objects to reference other objects.</li>
+						</ul>
+					</section>
+					<section>
+						<h2>Label</h2>
+						<p>Assign:</p>
+	<pre><code class="yaml" data-line-numbers>metadata:
+	  labels:
+	    run: shinyproxy
+	</code></pre>
+	<p>Use:</p>
+	<pre><code class="yaml" data-line-numbers>selector:
+	  matchLabels:
+	    run: shinyproxy
+	</code></pre>
+					</section>
+				</section>
+				<section>
+					<h2>Secret</h2>
+					<ul>
+						<li>Dedicated object that can store e.g. Docker Registry login and password, SSL certificate, SSH key pair.</li>
+						<li>It's safer than to save secrets inside container images.</li>
+						<li>Secrets can be materialized as files on volume mounted to container or can be set as environmental variables.</li>
+						<li>You can give users access to Secrets and let them manage them on their own.</li>
+						<li>ShinyProxy can read Docker Registry login and password from Kubernetes Secret.</li>
+					</ul>
+				</section>
+				<section>
+					<h2>ConfigMap</h2>
+					<ul>
+						<li>Dedicated object that stores key-value pairs.</li>
+						<li>Allows to have one generic container image that is customized at runtime with <span class="code1">ConfigMap</span>s.</li>
+						<li><span class="code1">ConfigMap</span>s can be materialized as files on volume mounted to container or can be set as environmental variables.</li>
+					</ul>
+				</section>
+				<section>
+					<h2>DaemonSet</h2>
+					<ul>
+						<li>Make sure that (all) Nodes run a given Pod.</li>
+						<li>Useful to run for example storage daemon, logs collection daemon or monitoring agent on every node.</li>
+					</ul>
+				</section>
+				<section>
+					<h2>ReplicaSet</h2>
+					<ul>
+						<li>It makes sure that given number of identical Pods are running.</li>
+						<li>It stops/starts/restarts Pods when needed.</li>
+					</ul>
+				</section>
+				<section>
+					<h2>Deployment</h2>
+					<ul>
+						<li>Manages Pods and ReplicaSets.</li>
+						<li>Allows to change from one state to another (for example rolling upgrade of Pods in ReplicaSet).</li>
+					</ul>
+				</section>
+				<section>
+					<section>
+						<h2>kubespray</h2>
+						<ul>
+							<li><span class="code1">kubespray</span> is a set of Ansible playbooks that can be used to deploy or modify Kubernetes cluster.</li>
+							<li>Also provides <span class="code1">Vagrantfile</span> to deploy Kubernetes on virtual machines.</li>
+						</ul>
+					</section>
+					<section>
+						<h2>kubespray on Vagrant</h2>
+						<ul>
+							<li>My recommendation: increase default RAM from 2GB to 8GB, CPU from 1 to 4, disk from 20GB to 40GB.</li>
+							<li>When machines have two network interfaces...
+								<ul>
+									<li>...and Flannel is being used, set <span class="code1">flannel_interface: 'eth1'</span> in <span class="code1">inventory/NAME/group_vars/k8s-cluster/k8s-net-flannel.yml</span>.</li>
+									<li>...and Calico is being used, set <span class="code1">calico_ip_auto_method: "interface=eth1.*"</span> in <span class="code1">roles/network_plugin/calico/defaults/main.yml</span>.</li>
+								</ul>
+							</li>
+						</ul>
+					</section>
+					<section>
+						<h2>minikube</h2>
+						<ul>
+							<li>My recommendation: increase default RAM 16GB, CPU to 8, disk to 50GB.</li>
+						</ul>
+					</section>
+				</section>
+				<section>
+					<h2>Administering Kubernetes</h2>
+					<ul>
+						<li><span class="code1">kubectl</span></li>
+						<li><span class="code1">~/.kube/config</span></li>
+					</ul>
+				</section>
+				<section>
+					<section>
+						<h2>User Accounts</h2>
+						<ul>
+							<li>X509 certificates can be used to authenticate clients.</li>
+							<li>Client certificates can indicate a user’s group memberships using the certificate’s organization fields.</li>
+						</ul>
+					</section>
+					<section>
+						<h2>Adding new user</h2>
+						<ul>
+							<li>Create SSL certificate for user.</li>
+							<li>Sign it with Kubernetes CA (<span class="code1">/etc/kubernetes/ssl</span> in case of <span class="code1">kubespray</span>).</li>
+							<li>Add new credentials and context to <span class="code1">~/.kube/config</span>.</li>
+						</ul>
+					</section>
+					<section>
+						<h2>Assigning rights</h2>
+						<ul>
+							<li><span class="code1">Role</span> (named set of permissions)</li>
+							<li><span class="code1">RoleBinding</span> (assign <span class="code1">Role</span> to <span class="code1">User(s)</span>)</li>
+							<li><span class="code1">ClusterRole</span> (named set of cluster-wide permissions)</li>
+							<li><span class="code1">ClusterRoleBinding</span> (assign <span class="code1">ClusterRole</span> to <span class="code1">User(s)</span>)</li>
+							<li><span class="code1">User</span>, <span class="code1">Group</span>, <span class="code1">ServiceAccount</span></li>
+						</ul>
+					</section>
+				</section>
+				<section>
+					<section>
+						<h2>ShinyProxy Architecture</h2>
+						<img src="ShinyProxy-architecture.png" alt="ShinyProxy architecture" style="width: 70%" />
+					</section>
+					<section>
+						<h2>ShinyProxy Dashboard Usage</h2>
+						<p>What happens when user opens dashboard?</p>
+						<ul>
+							<li>User logins to ShinyProxy.</li>
+							<li>User opens link to selected dashboard.</li>
+							<li>ShinyProxy displays waiting screen.</li>
+							<li>ShinyProxy sends request to Kubernetes to start Pod with dashboard.</li>
+							<li>Kubernetes downloads latest container image from Repository (if needed).</li>
+						</ul>
+					</section>
+					<section>
+						<h2>ShinyProxy Dashboard Usage</h2>
+						<p>What happens when user opens dashboard?</p>
+						<ul>
+							<li>Kubernetes starts Pod with dashboard.</li>
+							<li>Shiny in container starts.</li>
+							<li>Shiny executes dashboard's code.</li>
+							<li>When Shiny in container is running, then ShinyProxy shows the dashboard to user.</li>
+						</ul>
+					</section>
+					<section>
+						<h2>ShinyProxy Dashboard Change</h2>
+						<p>What happens when developer changes dashboard's code?</p>
+						<ul>
+							<li>Developer commits changes to git repo.</li>
+							<li>GitLab Runner builds new container image and pushes it to Registry.</li>
+							<li>User has to close the dashboard, wait one minute (or login again) and open dashboard.</li>
+						</ul>
+					</section>
+					<section>
+						<h2>New Dashboard Creation</h2>
+						<p>How to create new dashboard?</p>
+						<ul>
+							<li>Developer creates new git repository with dashboard's code.</li>
+							<li>GitLab Runner builds new container image and pushes it to Registry.</li>
+							<li>GitLab Schedule (once per hour) generates ShinyProxy configuration (with list of dashboards) and restarts ShinyProxy (if needed).</li>
+							<li>Users can access new dashboard.</li>
+						</ul>
+					</section>
+				</section>
+				<section>
+<section data-markdown>
+<textarea data-template>
+  ## Lessons learned
+  * I had problems with YAML code copied from Internet websites. Indentation was incorrect and I had to correct it.
+  * You need to have at least 10% of disk space free on node. If not, then Kubernetes won't run new pods on given node.
+  * Hardware resources (RAM, CPU cores) can't be too low.
+  * HDD-s were too slow. <span class="code1">etcd</span> needs low disk write latency. Start with SSD-s.
+</textarea>
+</section>
+<section data-markdown>
+<textarea data-template>
+  ## Lessons learned
+  * Some nodes need to be workers-only (not masters)
+  * <span class="code1">kubespray</span> can install Ingress (Nginx), but it didn't work for me.
+  * There are bugs in almost all versions of Kubernetes. [Sometimes there are also false error messages](https://github.com/kubernetes/kubernetes/issues/70082#issuecomment-472953330).
+</textarea>
+</section>
+					<section>
+						<h2>Good practices</h2>
+						<ul>
+							<li>At the beginning run additional services (for example Docker Registry) outside of Kubernetes.</li>
+						</ul>
+					</section>
+					<section>
+						<h2>What was hard?</h2>
+						<ul>
+							<li>Didn't know where to look for problems. Googling and testing differend options, looking for one that will make everything suddenly start working.</li>
+							<li><span class="code1">tcpdump</span>, debugging, reading <span class="code1">kubespray</span>'s code, reading logs.</li>
+							<li>I was trying to make MetalLB work. Problem was with Calico.</li>
+							<li>I was trying to make Pod start. Problem was with not enough disk space.</li>
+						</ul>
+					</section>
+					<section>
+						<h2>What was unexpected?</h2>
+						<ul>
+							<li>ShinyProxy Pods are leaking.</li>
+						</ul>
+					</section>
+				</section>
+				<section>
+					<section>
+						<h2>Useful commands</h2>
+						<p>Get pod's name using selector.</p>
+<pre><code data-line-numbers># kubectl get --no-headers=true pods \
+  --selector=run=shinyproxy -n shinyproxy1 \
+  -o custom-columns=:metadata.name
+shinyproxy-54b6c8b585-mxvhv
+</code>
+</pre>
+					</section>
+					<section>
+						<h2>Useful commands</h2>
+						<p>Check status of the service.</p>
+						<pre><code>kubectl describe service SERVICE_NAME</code></pre>
+						<p>Sometimes status messages and logs are attached to the Service object.</p>
+					</section>
+					<section>
+						<h2>Useful commands</h2>
+						<p>List of nodes.</p>
+						<pre><code>kubectl get nodes</code></pre>
+					</section>
+					<section>
+						<h2>Useful commands</h2>
+						<p>Calico.</p>
+						<pre><code>calicoctl get nodes
+calicoctl node status</code></pre>
+					</section>
+					<section>
+						<h2>Useful commands</h2>
+						<p>List of all pods from all namespaces.</p>
+						<pre><code>kubectl get pods --all-namespaces -o wide --show-labels</code></pre>
+					</section>
+					<section>
+						<h2>Useful commands</h2>
+						<p>Details of all Pods from <span class="code1">default</span> namespace.</p>
+						<pre><code>kubectl describe pods</code></pre>
+					</section>
+
+					<section>
+						<h2>Useful commands</h2>
+						<p>Run Pod with container using selected image.</p>
+						<pre><code>kubectl run POD_NAME --image=IMAGE_URI ARGS</code></pre>
+					</section>
+					<section>
+						<h2>Useful commands</h2>
+						<p>Execute command in running container.</p>
+						<pre><code class="bash">kubectl exec POD -- COMMAND ARGS</code></pre>
+						<pre><code class="bash">kubectl exec POD --stdin --tty /bin/sh -c CONTAINER \
+        -n NAMESPACE</code></pre>
+						<pre><code class="bash">kubectl exec POD -n NAMESPACE -i -t -- bash -il</code></pre>
+					</section>
+					<section>
+						<h2>Useful commands</h2>
+						<p>Apply YAML file.</p>
+						<pre><code>kubectl apply -f deployment.yaml</code></pre>
+						<pre><code>kubectl apply -f https://server/path/deployment.yaml</code></pre>
+					</section>
+					<section>
+						<h2>Useful commands</h2>
+						<p>Edit existing object.</p>
+						<pre><code>kubectl edit TYPE NAME</code></pre>
+					</section>
+					<section>
+						<h2>Useful commands</h2>
+						<p>Show logs of container in Pod.</p>
+						<pre><code>kubectl logs POD -n NAMESPACE -c CONTAINER</code></pre>
+					</section>
+					<section>
+						<h2>Useful commands</h2>
+						<p>Deleting objects.</p>
+						<pre><code class="bash">kubectl -n NAMESPACE delete pod POD</code></pre>
+						<pre><code class="bash">kubectl delete deployment -n NAMESPACE DEPLOYMENT_NAME</code></pre>
+					</section>
+					<section>
+						<h2>Useful commands</h2>
+						<p>Create Kubernetes secret with SSL certificate.</p>
+						<pre><code class="bash">kubectl create secret tls NAME --key privkey.pem \
+        --cert fullchain.pem</code></pre>
+					</section>
+					<section>
+						<h2>Useful commands</h2>
+						<p>Get YAML definition of a given object.</p>
+						<pre><code class="bash">kubectl get pods/POD -o yaml</code></pre>
+					</section>
+					<section>
+						<h2>Useful commands</h2>
+						<p>Get name of object using selector.</p>
+						<pre><code class="bash" data-line-numbers>kubectl get --no-headers=true TYPE --selector=SELECTOR \
+	-n NAMESPACE -o custom-columns=:metadata.name</code></pre>
+					</section>
+					<section>
+						<h2>Useful commands</h2>
+						<p>Using <span class="code1">kubectl</span> with non-default context.</p>
+						<pre><code class="bash">kubectl --context=CONTEXT get pods</code></pre>
+					</section>
+					<section>
+						<h2>Useful commands</h2>
+						<p>Using <span class="code1">kubectl</span> with non-default config file.</p>
+						<pre><code class="bash">kubectl replace --force -f sp-deployment.yaml \
+        --kubeconfig=/path/.kube/config</code></pre>
+					</section>
+					<section>
+						<h2>Useful commands</h2>
+						<p>Replace <span class="code1">Pod</span>/<span class="code1">Deployment</span>.</p>
+						<pre><code class="bash">kubectl replace --force -f FILE.yaml</code></pre>
+					</section>
+					<section>
+						<h2>Useful commands</h2>
+						<p>Replace <span class="code1">Pod</span>/<span class="code1">Deployment</span>. Works when there is no original YAML file.</p>
+						<pre><code class="bash">kubectl get pod --namespace=NAMESPACE -o yaml POD | \
+        kubectl replace --force  -f -</code></pre>
+					</section>
+					<section>
+						<h2>Useful commands</h2>
+						<p>Update SSL certificate.</p>
+						<pre><code class="bash">kubectl create secret tls NAME --namespace=NAMESPACE \
+        --key privkey.pem --cert fullchain.pem --dry-run \
+        -o yaml | kubectl apply -f -</code></pre>
+					</section>
+				</section>
+				<section>
+					<h2>Kubernetes troubleshooting</h2>
+					<ul>
+						<li><span class="code1">kubectl get nodes</span></li>
+						<li>Check system logs on all nodes.</li>
+						<li><span class="code1">dmesg</span></li>
+						<li><span class="code1">kubectl cluster-info dump</span></li>
+						<li><span class="code1">kubectl get events \<br/>--namespace=NAMESPACE</span></li>
+						<li><span class="code1">kubectl logs POD --namespace=NAMESPACE</span></li>
+						<li>Run test application.</li>
+						<li>Check status of all Pods.</li>
+					</ul>
+				</section>
+				<section>
+					<section>
+						<h2>My Kubernetes notes</h2>
+						<a href="https://bit.ly/2W4P758">Instructions how to setup Kubernetes cluster</a>.<br />
+						<img src="qr-kubernetes-dokumentacja.png" alt="qr-kubernetes-dokumentacja" />
+					</section>
+					<section>
+						<h2>How to install Kubernetes</h2>
+						<ul>
+							<li>Install Ansible.</li>
+							<li>Download <span class="code1">kubespray</span>.</li>
+							<li>(Optional) Adjust <span class="code1">Vagrantfile</span>.</li>
+							<li>Adjust <span class="code1">kubespray</span>'s configuration.</li>
+							<li>Install <span class="code1">kubectl</span>.</li>
+						</ul>
+					</section>
+					<section>
+						<h2>How to install Kubernetes</h2>
+						<ul>
+							<li><span class="code1">~/.kube/config</span></li>
+							<li>Ensure that all Pods are running.</li>
+							<li>Run test application.</li>
+							<li>Install MetalLB and configure network addresses.</li>
+							<li>Install Ingress.</li>
+							<li>Create <span class="code1">Secret</span> with SSL certificate for Ingress.</li>
+						</ul>
+					</section>
+					<section>
+						<h2>My ShinyProxy notes</h2>
+						<a href="https://bit.ly/30m2ixQ">Instructions how to install ShinyProxy on Kubernetes</a>.<br />
+						<img src="qr-shinyproxy-dokumentacja.png" alt="qr-shinyproxy-dokumentacja" />
+					</section>
+					<section>
+						<h2>How to install ShinyProxy</h2>
+						<ul>
+							<li>Create dedicated <span class="code1">Namespace</span>.</li>
+							<li>Create Kubernetes account for ShinyProxy.</li>
+							<li><span class="code1">Role</span>, <span class="code1">RoleBinding</span>.</li>
+							<li>Create <span class="code1">Secret</span> for Docker Registry.</li>
+							<li>Create first container image with Shiny and dashboard's code and upload it to Registry.</li>
+							<li>Create sidecar's container image and upload it to Registry.</li>
+						</ul>
+					</section>
+					<section>
+						<h2>How to install ShinyProxy</h2>
+						<ul>
+							<li>Create ShinyProxy's container image and upload it to Registry.</li>
+							<li style="display: block;">
+								<ul>
+									<li>Remember about Kubernetes account's SSL certificates.</li>
+									<li><span class="code1">application.yml</span> (ShinyProxy configuration).</li>
+								</ul>
+							</li>
+							<li><span class="code1">Deployment</span>, <span class="code1">ClusterRoleBinding</span>, <span class="code1">Service</span>.</li>
+							<li><span class="code1">Ingress</span>.</li>
+						</ul>
+					</section>
+				</section>
+				<section>
+					<h2>Current status of project</h2>
+					<ul>
+						<li>ShinyProxy is running on our development Kubernetes cluster.</li>
+						<li>CI/CD is working.</li>
+						<li>We are fixing bugs and implementing required features.</li>
+					</ul>
+				</section>
+				<section>
+					<section>
+						<h2>IN THE FUTURE</h2>
+						<ul>
+							<li>HA testing.</li>
+							<li>Persistent data storage (or data extraction from Pods).</li>
+							<li>Centralized logs storage.</li>
+						</ul>
+					</section>
+					<section>
+						<h2>IN THE FUTURE</h2>
+						<ul>
+							<li>Monitoring (Prometheus?).</li>
+							<li>More security restrictions (Docker Registry, secrets).</li>
+							<li>Discover how to expose to the Internet services that do not talk HTTP(S) (TCP only).</li>
+							<li>Test OpenShift.</li>
+						</ul>
+					</section>
+				</section>
+				<section>
+					<section>
+						<h2>Thank you</h2>
+						<p>Fin.</p>
+					</section>
+					<section>
+						<h2>About Me</h2>
+						<table style="border: 0px; width:80%;">
+							<tr>
+								<td style="vertical-align: top; width:70%;">
+									Maciej Korzeń<br />
+									DWH DevOps Team Leader @ <a href="https://www.iiit.pl/">IIIT</a><br />
+									Owner @ <a href="https://www.setgid.com">setgid Maciej Korzeń</a><br />
+									<a href="mailto:maciek@korzen.org">maciek@korzen.org</a>, <a href="mailto:maciek@setgid.com">maciek@setgid.com</a>
+								</td>
+								<td style="vertical-align: top; width:30%;">
+									&nbsp;
+									<img src="selfie.jpg" alt="selfie" style="display: block; width: 100%;" />
+								</td>
+							</tr>
+						</table>
+					</section>
+				</section>
+			</div>
+		</div>
+		<script src="js/reveal.js"></script>
+		<script>
+			// More info about config & dependencies:
+			// - https://github.com/hakimel/reveal.js#configuration
+			// - https://github.com/hakimel/reveal.js#dependencies
+			Reveal.initialize({
+				dependencies: [
+					{ src: 'plugin/markdown/marked.js' },
+					{ src: 'plugin/markdown/markdown.js' },
+					{ src: 'plugin/notes/notes.js', async: true },
+					{ src: 'plugin/highlight/highlight.js', async: true }
+				],
+				width: 1024,
+				height: 768,
+				hash: true,
+				autoPlayMedia: true
+			});
+			Reveal.configure({ slideNumber: true });
+		</script>
+	</body>
+</html>
