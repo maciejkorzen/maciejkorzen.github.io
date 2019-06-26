@@ -8,7 +8,7 @@
 
 		<link rel="stylesheet" href="css/reset.css">
 		<link rel="stylesheet" href="css/reveal.css">
-		<link rel="stylesheet" href="css/theme/black.css">
+		<link rel="stylesheet" href="css/theme/black.css" id="theme">
 		<link rel="stylesheet" href="css/custom1.css">
 
 		<!-- Theme used for syntax highlighting of code -->
@@ -30,7 +30,7 @@
 					<section>
 						<h2>First step into Kubernetes<br />(And ShinyProxy)</h2>
 						<p>
-							Link to this presentation: <a href="https://bit.ly/2ImBPcm">bit.ly/2ImBPcm</a>.<br />
+							Link to this presentation: <a href="https://bit.ly/2Vt9vZp">bit.ly/2Vt9vZp</a>.<br />
 							<img style="width: 30%" src="qr-self1.png" alt="qr-self1" />
 						</p>
 						<p>Note: slides are two dimensional. Navigate with arrow keys (⇦ ⇧ ⇨ ⇩) and [Esc] (mini map).</p>
@@ -801,12 +801,17 @@ calicoctl node status</code></pre>
 					{ src: 'plugin/markdown/marked.js' },
 					{ src: 'plugin/markdown/markdown.js' },
 					{ src: 'plugin/notes/notes.js', async: true },
+					{ src: 'plugin/menu/menu.js' },
 					{ src: 'plugin/highlight/highlight.js', async: true }
 				],
 				width: 1024,
 				height: 768,
 				hash: true,
-				autoPlayMedia: true
+				autoPlayMedia: true,
+				menu: {
+					themes: true
+
+				}
 			});
 			Reveal.configure({ slideNumber: true });
 		</script>
